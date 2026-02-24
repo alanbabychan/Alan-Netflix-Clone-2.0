@@ -22,16 +22,8 @@ export default function Footer() {
           "::before, ::after": { top: "0%" },
         }}
       >
-        <Typography color="grey.700" variant="h6" component="span">
-          Developed by{" "}
-          <Link
-            target="_blank"
-            underline="none"
-            sx={{ color: "text.primary" }}
-            href="https://github.com/alanbabychan"
-          >
-            KIDDO
-          </Link>
+        <Typography color="WHITE" variant="h6" component="span">
+          Developed by ALAN/KIDDO
         </Typography>
       </Divider>
     </Box>

@@ -3,7 +3,11 @@ import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import { useNavigate } from "react-router-dom";
 import { MAIN_PATH } from "src/constant";
 
-export default function PlayButton({ sx, ...others }: ButtonProps) {
+interface PlayButtonProps extends ButtonProps {
+  movieId?: number;
+}
+
+export default function PlayButton({ sx, movieId, ...others }: PlayButtonProps) {
   const navigate = useNavigate();
   return (
     <Button
@@ -31,7 +35,7 @@ export default function PlayButton({ sx, ...others }: ButtonProps) {
         textTransform: "capitalize",
         ...sx,
       }}
-      onClick={() => navigate(`/${MAIN_PATH.watch}`)}
+      onClick={() => navigate(`/${MAIN_PATH.watch}`, { state: { movieId } })}
     >
       Play
     </Button>

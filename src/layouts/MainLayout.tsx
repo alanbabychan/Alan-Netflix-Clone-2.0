@@ -23,14 +23,16 @@ export default function MainLayout() {
     >
       <MainHeader />
       {navigation.state !== "idle" && <MainLoadingScreen />}
-      <DetailModalProvider>
-        <DetailModal />
-        <PortalProvider>
-          {/* <MainLoadingScreen /> */}
-          <Outlet />
-          <VideoPortalContainer />
-        </PortalProvider>
-      </DetailModalProvider>
+      <Box sx={{ pt: `${70}px` }}>
+        <DetailModalProvider>
+          <DetailModal />
+          <PortalProvider>
+            {/* <MainLoadingScreen /> */}
+            <Outlet />
+            <VideoPortalContainer />
+          </PortalProvider>
+        </DetailModalProvider>
+      </Box>
       {location.pathname !== `/${MAIN_PATH.watch}` && <Footer />}
     </Box>
   );

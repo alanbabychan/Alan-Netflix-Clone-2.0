@@ -1,7 +1,7 @@
-import { useState, useRef, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useRef, useMemo, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import Player from "video.js/dist/types/player";
-import { Box, Stack, Typography } from "@mui/material";
+import { Box, Stack, Typography, Menu, MenuItem, ListItemText } from "@mui/material";
 import { SliderUnstyledOwnProps } from "@mui/base/SliderUnstyled";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import PauseIcon from "@mui/icons-material/Pause";
@@ -13,6 +13,7 @@ import KeyboardBackspaceIcon from "@mui/icons-material/KeyboardBackspace";
 
 import useWindowSize from "src/hooks/useWindowSize";
 import { formatTime } from "src/utils/common";
+import { TMDB_V3_API_KEY, API_ENDPOINT_URL } from "src/constant";
 
 import MaxLineTypography from "src/components/MaxLineTypography";
 import VolumeControllers from "src/components/watch/VolumeControllers";
@@ -22,6 +23,11 @@ import PlayerControlButton from "src/components/watch/PlayerControlButton";
 import MainLoadingScreen from "src/components/MainLoadingScreen";
 
 export function Component() {
+  const location = useLocation();
+  const movieId = location.state?.movieId;
+  const [videoUrl, setVideoUrl] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+  const [videoKey, setVideoKey] = useState(0);
   const playerRef = useRef<Player | null>(null);
   const [playerState, setPlayerState] = useState({
     paused: false,
@@ -34,28 +40,73 @@ export function Component() {
 
   const navigate = useNavigate();
   const [playerInitialized, setPlayerInitialized] = useState(false);
+  const [settingsAnchor, setSettingsAnchor] = useState<null | HTMLElement>(null);
+  const [isPiP, setIsPiP] = useState(false);
+  const [selectedQuality, setSelectedQuality] = useState('Auto');
 
   const windowSize = useWindowSize();
+
+  useEffect(() => {
+    const fetchTrailer = async () => {
+      if (!movieId) {
+        console.log('No movieId provided');
+        setVideoUrl("https://bitmovin-a.akamaihd.net/content/sintel/hls/playlist.m3u8");
+        setLoading(false);
+        return;
+      }
+
+      console.log('Fetching trailer for movieId:', movieId);
+      try {
+        const response = await fetch(
+          `${API_ENDPOINT_URL}/movie/${movieId}/videos?api_key=${TMDB_V3_API_KEY}`
+        );
+        const data = await response.json();
+        console.log('API Response:', data);
+        const trailer = data.results?.find(
+          (video: any) => video.type === "Trailer" && video.site === "YouTube"
+        );
+        
+        if (trailer) {
+          console.log('Trailer found:', trailer.key);
+          setVideoUrl(`https://www.youtube.com/watch?v=${trailer.key}`);
+          setVideoKey(prev => prev + 1);
+        } else {
+          console.log('No trailer found, using default video');
+          setVideoUrl("https://bitmovin-a.akamaihd.net/content/sintel/hls/playlist.m3u8");
+          setVideoKey(prev => prev + 1);
+        }
+      } catch (error) {
+        console.error("Error fetching trailer:", error);
+        setVideoUrl("https://bitmovin-a.akamaihd.net/content/sintel/hls/playlist.m3u8");
+        setVideoKey(prev => prev + 1);
+      }
+      setLoading(false);
+    };
+
+    fetchTrailer();
+  }, [movieId]);
+
   const videoJsOptions = useMemo(() => {
+    if (!videoUrl) return null;
+    
+    const isYouTube = videoUrl.includes('youtube');
+    console.log('Video URL:', videoUrl, 'Is YouTube:', isYouTube);
+    
     return {
       preload: "metadata",
       autoplay: true,
       controls: false,
-      // responsive: true,
-      // fluid: true,
       width: windowSize.width,
       height: windowSize.height,
+      techOrder: isYouTube ? ["youtube"] : ["html5"],
       sources: [
         {
-          // src: videoData?.video,
-          // src: "https://d2zihajmogu5jn.cloudfront.net/bipbop-advanced/bipbop_16x9_variant.m3u8",
-          src: "https://bitmovin-a.akamaihd.net/content/sintel/hls/playlist.m3u8",
-          type: "application/x-mpegurl",
+          src: videoUrl,
+          type: isYouTube ? "video/youtube" : "application/x-mpegurl",
         },
       ],
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [windowSize]);
+  }, [videoUrl, windowSize.width, windowSize.height]);
 
   const handlePlayerReady = function (player: Player): void {
     player.on("pause", () => {
@@ -103,14 +154,66 @@ export function Component() {
     navigate("/browse");
   };
 
-  if (!!videoJsOptions.width) {
+  const handleSkipNext = () => {
+    if (playerRef.current) {
+      const currentTime = playerRef.current.currentTime();
+      const duration = playerRef.current.duration();
+      const newTime = Math.min(currentTime + 10, duration);
+      playerRef.current.currentTime(newTime);
+    }
+  };
+
+  const handleSettings = (event: React.MouseEvent<HTMLElement>) => {
+    setSettingsAnchor(event.currentTarget);
+  };
+
+  const handleCloseSettings = () => {
+    setSettingsAnchor(null);
+  };
+
+  const handleQualityChange = (quality: string) => {
+    setSelectedQuality(quality);
+    setSettingsAnchor(null);
+    console.log('Quality changed to:', quality);
+  };
+
+  const handlePictureInPicture = () => {
+    if (playerRef.current) {
+      const videoElement = playerRef.current.el().querySelector('video');
+      if (videoElement) {
+        if (document.pictureInPictureElement) {
+          document.exitPictureInPicture();
+          setIsPiP(false);
+        } else {
+          videoElement.requestPictureInPicture();
+          setIsPiP(true);
+        }
+      }
+    }
+  };
+
+  const handleFullscreen = () => {
+    if (playerRef.current) {
+      if (playerRef.current.isFullscreen()) {
+        playerRef.current.exitFullscreen();
+      } else {
+        playerRef.current.requestFullscreen();
+      }
+    }
+  };
+
+  if (loading) {
+    return <MainLoadingScreen />;
+  }
+
+  if (!!videoJsOptions?.width) {
     return (
       <Box
         sx={{
           position: "relative",
         }}
       >
-        <VideoJSPlayer options={videoJsOptions} onReady={handlePlayerReady} />
+        <VideoJSPlayer key={videoKey} options={videoJsOptions} onReady={handlePlayerReady} />
         {playerRef.current && playerInitialized && (
           <Box
             sx={{
@@ -141,7 +244,7 @@ export function Component() {
                   color: "white",
                 }}
               >
-                Title
+                
               </Typography>
             </Box>
             <Box
@@ -206,7 +309,7 @@ export function Component() {
                       <PlayArrowIcon />
                     </PlayerControlButton>
                   )}
-                  <PlayerControlButton>
+                  <PlayerControlButton onClick={handleSkipNext}>
                     <SkipNextIcon />
                   </PlayerControlButton>
                   <VolumeControllers
@@ -247,13 +350,44 @@ export function Component() {
                   alignItems="center"
                   spacing={{ xs: 0.5, sm: 1.5, md: 2 }}
                 >
-                  <PlayerControlButton>
-                    <SettingsIcon />
-                  </PlayerControlButton>
-                  <PlayerControlButton>
+                  <Box sx={{ position: 'relative' }}>
+                    <PlayerControlButton onClick={handleSettings}>
+                      <SettingsIcon />
+                    </PlayerControlButton>
+                    <Menu
+                      anchorEl={settingsAnchor}
+                      open={Boolean(settingsAnchor)}
+                      onClose={handleCloseSettings}
+                      sx={{
+                        '& .MuiPaper-root': {
+                          bgcolor: 'rgba(0,0,0,0.9)',
+                          color: 'white',
+                          minWidth: 150,
+                        },
+                      }}
+                    >
+                      <MenuItem disabled>
+                        <ListItemText primary="Quality" sx={{ color: '#999' }} />
+                      </MenuItem>
+                      {['Auto', '1080p', '720p', '480p', '360p'].map((quality) => (
+                        <MenuItem
+                          key={quality}
+                          onClick={() => handleQualityChange(quality)}
+                          selected={selectedQuality === quality}
+                          sx={{
+                            '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' },
+                            '&.Mui-selected': { bgcolor: 'rgba(229,9,20,0.3)' },
+                          }}
+                        >
+                          <ListItemText primary={quality} />
+                        </MenuItem>
+                      ))}
+                    </Menu>
+                  </Box>
+                  <PlayerControlButton onClick={handlePictureInPicture}>
                     <BrandingWatermarkOutlinedIcon />
                   </PlayerControlButton>
-                  <PlayerControlButton>
+                  <PlayerControlButton onClick={handleFullscreen}>
                     <FullscreenIcon />
                   </PlayerControlButton>
                 </Stack>
