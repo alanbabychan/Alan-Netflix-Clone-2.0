@@ -1,10 +1,8 @@
----
-
 ## 🎬 Alan-Netflix Clone 2.0
 
-> A fully responsive **Netflix-inspired video streaming platform** built using **React.js, TypeScript, and modern frontend technologies**.
+A fully responsive **Netflix-inspired video streaming platform** built using **React.js, TypeScript, and modern frontend technologies**.
 
----
+
 
 ## 🚀 Overview
 
