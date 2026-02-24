@@ -1,4 +1,6 @@
 ## 🎬 Alan-Netflix Clone 2.0
+![Version](https://img.shields.io/badge/version-v2.0-red)
+![Status](https://img.shields.io/badge/status-active-brightgreen)
 
 A fully responsive **Netflix-inspired video streaming platform** built using **React.js, TypeScript, and modern frontend technologies**.
 
